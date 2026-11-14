@@ -207,6 +207,7 @@
 
   /* ---------- process stepper (auto-advances; pauses on interaction) ---------- */
   var steps = $$('.step'), panel = $('.proc__panel');
+
   var data = [
     ['i-chat', 'Consultation', 'Share your ideas, purpose, and preferences with our team.'],
     ['i-pen', 'Design & Approval', 'We create a design concept for your review and approval.'],
@@ -215,17 +216,46 @@
     ['i-shield', 'Quality Check', 'Every belt is inspected to meet our high standards.'],
     ['i-truck', 'Secure Delivery', 'Carefully packaged and shipped safely to your door.']
   ];
+
+  var extra = [
+    {t:'Day 1–2',   y:'Ideas & logo',   d:'Free consultation',   l:['Tell us your event, team or brand','Share logos, colors and ideas','Get expert advice on size and style']},
+    {t:'Day 2–4',   y:'Your feedback',  d:'Free digital mockup', l:['See a free mockup of your belt','Request unlimited tweaks','Approve before we build']},
+    {t:'Day 4–5',   y:'Your choices',   d:'Material samples',    l:['Pick leather and plate finish','Choose metals and colors','Add side plates and engraving']},
+    {t:'Day 5–12',  y:'Nothing needed', d:'Handmade belt',       l:['Cut, stitched and plated by hand','Photo updates on request','Built to last a lifetime']},
+    {t:'Day 12–13', y:'Nothing needed', d:'Inspected belt',      l:['Stitching and plating inspection','Engraving accuracy check','Final photos sent to you']},
+    {t:'Day 13–15', y:'Your address',   d:'Tracked shipping',    l:['Protective packaging','Tracked delivery','Ships worldwide']}
+  ];
+
   var cur = 0, timer = null, started = 0, DUR = 5000, raf = null, paused = false, procBar = $('#procBar');
+
+  function renderExtra(i) {
+    var s = extra[i], bars = '';
+    $('#pMeta').innerHTML =
+      '<li><small>Timeline</small><b>' + s.t + '</b></li>' +
+      '<li><small>You provide</small><b>' + s.y + '</b></li>' +
+      '<li><small>We deliver</small><b>' + s.d + '</b></li>';
+    $('#pList').innerHTML = s.l.map(function (x) { return '<li>' + x + '</li>'; }).join('');
+    for (var n = 0; n < 6; n++) bars += '<span' + (n <= i ? ' class="on"' : '') + '></span>';
+    $('#pProg').innerHTML = bars + '<em>Step ' + (i + 1) + ' of 6</em>';
+    $('#pProg').setAttribute('aria-label', 'Step ' + (i + 1) + ' of 6');
+  }
+
   function setStep(i) {
     cur = i;
-    steps.forEach(function (s, k) { var on = k === i; s.classList.toggle('is-on', on); s.setAttribute('aria-selected', String(on)); });
+    steps.forEach(function (s, k) {
+      var on = k === i;
+      s.classList.toggle('is-on', on);
+      s.setAttribute('aria-selected', String(on));
+    });
     $('#procBig').textContent = ('0' + (i + 1)).slice(-2);
     $('#procIc use').setAttribute('href', '#' + data[i][0]);
     $('#procH').textContent = data[i][1];
     $('#procP').textContent = data[i][2];
+    renderExtra(i);                                   // <- added here
     panel.classList.remove('is-swap'); void panel.offsetWidth; panel.classList.add('is-swap');
     started = performance.now();
   }
+
   function tick(now) {
     if (!paused) {
       var p = Math.min((now - started) / DUR, 1);
@@ -234,14 +264,20 @@
     }
     raf = requestAnimationFrame(tick);
   }
+
   steps.forEach(function (s, i) {
     s.addEventListener('click', function () { setStep(i); });
   });
+
   var procEl = $('#proc');
   procEl.addEventListener('mouseenter', function () { paused = true; });
   procEl.addEventListener('mouseleave', function () { paused = false; started = performance.now(); });
   procEl.addEventListener('focusin', function () { paused = true; });
   procEl.addEventListener('focusout', function () { paused = false; started = performance.now(); });
+
+  renderExtra(0);                                     // <- initial render
+  started = performance.now();
+  raf = requestAnimationFrame(tick);                  // <- start autoplay (remove if already started elsewhere)
 
   /* ---------- reveal + counters ---------- */
   var revealTargets = $$('.sec__head,.kicker,.panels,.craft__grid>*,.rows li,.pcard,.spot__grid>*,.proc__grid,.shot,.post,.promo__copy,.promo__media,.news>*,.stats li');
