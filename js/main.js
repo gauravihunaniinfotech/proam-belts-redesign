@@ -151,19 +151,67 @@
   });
 
   /* ---------- category expanding panels ---------- */
-  var panels = $$('.panel');
-  function activate(p) {
-    panels.forEach(function (x) { x.classList.toggle('is-active', x === p); });
-  }
-  var canHover = window.matchMedia && matchMedia('(hover:hover)').matches;
-  panels.forEach(function (p) {
-    if (canHover) p.addEventListener('mouseenter', function () { if (innerWidth > 991) activate(p); });
-    p.addEventListener('focus', function () { activate(p); });
-    /* On touch / stacked layout: first tap opens the panel, second tap follows the link */
-    p.addEventListener('click', function (e) {
-      if (!p.classList.contains('is-active')) { e.preventDefault(); activate(p); }
+  // var panels = $$('.panel');
+  // function activate(p) {
+  //   panels.forEach(function (x) { x.classList.toggle('is-active', x === p); });
+  // }
+  // var canHover = window.matchMedia && matchMedia('(hover:hover)').matches;
+  // panels.forEach(function (p) {
+  //   if (canHover) p.addEventListener('mouseenter', function () { if (innerWidth > 991) activate(p); });
+  //   p.addEventListener('focus', function () { activate(p); });
+  //   /* On touch / stacked layout: first tap opens the panel, second tap follows the link */
+  //   p.addEventListener('click', function (e) {
+  //     if (!p.classList.contains('is-active')) { e.preventDefault(); activate(p); }
+  //   });
+  // });
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const panels = document.querySelectorAll(".cats .panel");
+
+    if (!panels.length) return;
+
+    let activeIndex = 0;
+    let autoPlay;
+
+    function activatePanel(index) {
+      panels.forEach((panel, i) => {
+        panel.classList.toggle("is-active", i === index);
+      });
+
+      activeIndex = index;
+    }
+
+    function startAutoPlay() {
+      stopAutoPlay();
+
+      autoPlay = setInterval(() => {
+        activeIndex = (activeIndex + 1) % panels.length;
+        activatePanel(activeIndex);
+      }, 3000);
+    }
+
+    function stopAutoPlay() {
+      clearInterval(autoPlay);
+    }
+
+    panels.forEach((panel, index) => {
+      panel.addEventListener("mouseenter", () => {
+        stopAutoPlay();
+        activatePanel(index);
+      });
+
+      panel.addEventListener("mouseleave", startAutoPlay);
+
+      panel.addEventListener("focus", () => {
+        stopAutoPlay();
+        activatePanel(index);
+      });
     });
+
+    activatePanel(0);
+    startAutoPlay();
   });
+
 
   /* ---------- featured rail ---------- */
   var rail = $('#rail'), prev = $('#railPrev'), next = $('#railNext'), bar = $('#railBar');

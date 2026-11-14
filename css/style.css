@@ -213,7 +213,6 @@ input{font:inherit}
 .cats__bar{display:flex;justify-content:center;gap:12px 48px;flex-wrap:wrap;margin-top:48px;padding-top:32px;border-top:1px solid var(--line)}
 .cats__bar li{display:flex;align-items:center;gap:12px;font:700 15px/1 var(--head);letter-spacing:.18em;text-transform:uppercase;color:var(--gray)}
 .cats__bar .ic{color:var(--green);width:26px;height:26px}
-
 /* =========================================================
    04 CRAFT
    ========================================================= */
@@ -616,7 +615,7 @@ input{font:inherit}
   .hero__grid{gap:32px}
   .hero__trust{grid-template-columns:1fr 1fr}
   .pcard{flex-basis:calc((100% - 48px)/3)}
-  .panels{height:540px}
+  /* .panels{height:540px} */
   .proc__grid{grid-template-columns:300px 1fr}
   .foot__grid{grid-template-columns:1.4fr 1fr 1fr 1fr}
   .foot__grid>div:last-child{grid-column:2/-1}
@@ -642,10 +641,10 @@ input{font:inherit}
   .stats li:nth-child(2){border-right:0}
   .stats li:nth-child(-n+2){border-bottom:1px solid var(--line)}
   .stats li:nth-child(odd){padding-left:0}
-  .panels{flex-direction:column;height:auto}
+  /* .panels{flex-direction:column;height:auto}
   .panel{flex:none;height:92px;transition:height .6s var(--ease)}
   .panel.is-active{height:400px}
-  .panel__vt{writing-mode:horizontal-tb;transform:none;left:68px;bottom:50%;margin-bottom:-14px;font-size:1.9rem}
+  .panel__vt{writing-mode:horizontal-tb;transform:none;left:68px;bottom:50%;margin-bottom:-14px;font-size:1.9rem} */
   .craft__visual{max-width:560px;margin-inline:auto;width:100%}
   .pcard{flex-basis:calc((100% - 24px)/2)}
   .spot__media{order:-1;max-width:560px;margin-inline:auto;width:100%}
@@ -712,8 +711,8 @@ input{font:inherit}
   .stats b{font-size:2.3rem}
   .hero__ship{position:static;margin-top:28px;max-width:none}
   .hero__badge{display:none}
-  .panel.is-active{height:360px}
-  .panel__txt{left:22px;right:22px;bottom:22px}
+  /* .panel.is-active{height:360px}
+  .panel__txt{left:22px;right:22px;bottom:22px} */
   .cats__bar{flex-direction:column;align-items:flex-start}
   .foot__grid{grid-template-columns:1fr}
   .search form{flex-wrap:wrap}
