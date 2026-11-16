@@ -1,459 +1,495 @@
 /* =========================================================
-   PROAM BELTS – Redesign v2 interactions (vanilla JS)
+   PROAM BELTS – Redesign v2 interactions (vanilla JS) – v3 fixed
    ========================================================= */
 (function () {
   'use strict';
-  var $ = function (s, c) { return (c || document).querySelector(s); };
-  var $$ = function (s, c) { return Array.prototype.slice.call((c || document).querySelectorAll(s)); };
-  var lastFocus = null;
-  var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  /* ---------- missing-image placeholders ---------- */
-  function markMissing(img) { var p = img.closest('.ph'); if (p) p.classList.add('is-missing'); }
-  $$('.ph img').forEach(function (img) {
-    img.addEventListener('error', function () { markMissing(img); });
-    if (img.complete && img.naturalWidth === 0) markMissing(img);
-  });
-
-  /* ---------- sticky header state ---------- */
-  var hdr = $('#hdr');
-  function onScroll() { hdr.classList.toggle('is-stuck', window.scrollY > 10); }
-  window.addEventListener('scroll', onScroll, { passive: true });
-  onScroll();
-
-  /* ---------- desktop dropdowns ---------- */
-  function closeDropdowns() {
-    $$('.has-dd').forEach(function (li) {
-      li.classList.remove('is-open');
-      $('button', li).setAttribute('aria-expanded', 'false');
+ 
+  const $  = (s, c) => (c || document).querySelector(s);
+  const $$ = (s, c) => Array.from((c || document).querySelectorAll(s));
+  const on = (el, ev, fn, opt) => { if (el) el.addEventListener(ev, fn, opt); };
+  const reduce = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  let lastFocus = null;
+ 
+  function ready(fn) {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn);
+    else fn();
+  }
+ 
+  ready(function () {
+ 
+    /* ---------- missing-image placeholders ---------- */
+    function markMissing(img) { const p = img.closest('.ph'); if (p) p.classList.add('is-missing'); }
+    $$('.ph img').forEach(img => {
+      on(img, 'error', () => markMissing(img));
+      if (img.complete && img.naturalWidth === 0) markMissing(img);
     });
-  }
-  $$('.has-dd').forEach(function (li) {
-    var btn = $('button', li);
-    btn.addEventListener('click', function (e) {
-      e.stopPropagation();
-      var open = !li.classList.contains('is-open');
-      closeDropdowns();
-      li.classList.toggle('is-open', open);
-      btn.setAttribute('aria-expanded', String(open));
+ 
+    /* ---------- sticky header state ---------- */
+    const hdr = $('#hdr');
+    function onScroll() { if (hdr) hdr.classList.toggle('is-stuck', window.scrollY > 10); }
+    on(window, 'scroll', onScroll, { passive: true });
+    onScroll();
+ 
+    /* ---------- desktop dropdowns ---------- */
+    function closeDropdowns() {
+      $$('.has-dd').forEach(li => {
+        li.classList.remove('is-open');
+        const b = $('button', li); if (b) b.setAttribute('aria-expanded', 'false');
+      });
+    }
+    $$('.has-dd').forEach(li => {
+      const btn = $('button', li);
+      on(btn, 'click', e => {
+        e.stopPropagation();
+        const open = !li.classList.contains('is-open');
+        closeDropdowns();
+        li.classList.toggle('is-open', open);
+        btn.setAttribute('aria-expanded', String(open));
+      });
     });
-  });
-  document.addEventListener('click', closeDropdowns);
-
-  /* ---------- focus trap ---------- */
-  function trap(box, e) {
-    if (e.key !== 'Tab') return;
-    var f = $$('a[href],button:not([disabled]),input,summary', box).filter(function (el) { return el.offsetParent !== null; });
-    if (!f.length) return;
-    var first = f[0], last = f[f.length - 1];
-    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
-    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
-  }
-
-  /* ---------- mobile drawer ---------- */
-  var drawer = $('#drawer'), scrim = $('#scrim'), burger = $('#burger');
-  function openDrawer() {
-    lastFocus = document.activeElement;
-    scrim.hidden = false; drawer.classList.add('is-open');
-    drawer.setAttribute('aria-hidden', 'false'); burger.setAttribute('aria-expanded', 'true');
-    document.body.style.overflow = 'hidden'; $('#drawerClose').focus();
-  }
-  function closeDrawer() {
-    drawer.classList.remove('is-open'); drawer.setAttribute('aria-hidden', 'true');
-    burger.setAttribute('aria-expanded', 'false'); scrim.hidden = true;
-    document.body.style.overflow = ''; if (lastFocus) lastFocus.focus();
-  }
-  burger.addEventListener('click', openDrawer);
-  $('#drawerClose').addEventListener('click', closeDrawer);
-  scrim.addEventListener('click', closeDrawer);
-  drawer.addEventListener('keydown', function (e) { trap(drawer, e); });
-  drawer.addEventListener('click', function (e) { if (e.target.closest('a')) closeDrawer(); });
-  window.addEventListener('resize', function () {
-    if (window.innerWidth > 991 && drawer.classList.contains('is-open')) closeDrawer();
-  });
-
-  /* ---------- search overlay ---------- */
-  var search = $('#search');
-  function openSearch() { lastFocus = document.activeElement; search.hidden = false; document.body.style.overflow = 'hidden'; $('#q').focus(); }
-  function closeSearch() { search.hidden = true; document.body.style.overflow = ''; if (lastFocus) lastFocus.focus(); }
-  $('#searchOpen').addEventListener('click', openSearch);
-  $('#searchClose').addEventListener('click', closeSearch);
-  search.addEventListener('keydown', function (e) { trap(search, e); });
-  search.addEventListener('click', function (e) { if (e.target === search) closeSearch(); });
-
-  /* ---------- quick-view modal ---------- */
-  var qv = $('#qvModal');
-  function openQV(card) {
-    lastFocus = document.activeElement;
-    var img = $('#qvImg');
-    img.src = card.dataset.img; img.alt = card.dataset.name;
-    $('.modal__img', qv).classList.remove('is-missing');
-    $('.modal__img', qv).setAttribute('data-label', card.dataset.img.split('/').pop());
-    $('#qvTitle').textContent = card.dataset.name;
-    $('#qvPrice').textContent = card.dataset.price;
-    $('#qvLink').href = card.dataset.url;
-    qv.hidden = false; document.body.style.overflow = 'hidden'; $('#qvClose').focus();
-  }
-  function closeQV() { qv.hidden = true; document.body.style.overflow = ''; if (lastFocus) lastFocus.focus(); }
-  $$('.pcard__qv').forEach(function (b) {
-    b.addEventListener('click', function () { openQV(b.closest('.pcard')); });
-  });
-  $('#qvClose').addEventListener('click', closeQV);
-  qv.addEventListener('click', function (e) { if (e.target === qv) closeQV(); });
-  qv.addEventListener('keydown', function (e) { trap(qv, e); });
-
-  /* ---------- gallery filter + lightbox ---------- */
-  var shots = $$('.shot'), chips = $$('.chip2');
-  chips.forEach(function (c) {
-    c.addEventListener('click', function () {
-      chips.forEach(function (x) { x.classList.remove('is-on'); x.setAttribute('aria-selected', 'false'); });
-      c.classList.add('is-on'); c.setAttribute('aria-selected', 'true');
-      var f = c.dataset.f;
-      shots.forEach(function (s) { s.classList.toggle('is-off', f !== 'all' && s.dataset.cat !== f); });
-    });
-  });
-  var lb = $('#lb'), lbImg = $('#lbImg'), lbCap = $('#lbCap'), lbIdx = 0;
-  function visibleShots() { return shots.filter(function (s) { return !s.classList.contains('is-off'); }); }
-  function showLB(i) {
-    var list = visibleShots(); if (!list.length) return;
-    lbIdx = (i + list.length) % list.length;
-    var s = list[lbIdx], im = $('img', s);
-    lbImg.src = im.src; lbImg.alt = im.alt;
-    lbCap.textContent = $('b', s).textContent + ' – ' + $('span', s).textContent;
-  }
-  shots.forEach(function (s) {
-    $('.shot__btn', s).addEventListener('click', function () {
-      if (s.classList.contains('is-missing')) return;
+    on(document, 'click', closeDropdowns);
+ 
+    /* ---------- focus trap ---------- */
+    function trap(box, e) {
+      if (e.key !== 'Tab') return;
+      const f = $$('a[href],button:not([disabled]),input,summary', box).filter(el => el.offsetParent !== null);
+      if (!f.length) return;
+      const first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+ 
+    /* ---------- mobile drawer ---------- */
+    const drawer = $('#drawer'), scrim = $('#scrim'), burger = $('#burger'), drawerClose = $('#drawerClose');
+    function openDrawer() {
+      if (!drawer) return;
       lastFocus = document.activeElement;
-      showLB(visibleShots().indexOf(s));
-      lb.hidden = false; document.body.style.overflow = 'hidden'; $('#lbClose').focus();
-    });
-  });
-  function closeLB() { lb.hidden = true; document.body.style.overflow = ''; if (lastFocus) lastFocus.focus(); }
-  $('#lbClose').addEventListener('click', closeLB);
-  $('#lbPrev').addEventListener('click', function () { showLB(lbIdx - 1); });
-  $('#lbNext').addEventListener('click', function () { showLB(lbIdx + 1); });
-  lb.addEventListener('click', function (e) { if (e.target === lb) closeLB(); });
-  lb.addEventListener('keydown', function (e) {
-    trap(lb, e);
-    if (e.key === 'ArrowLeft') showLB(lbIdx - 1);
-    if (e.key === 'ArrowRight') showLB(lbIdx + 1);
-  });
-
-  /* ---------- Escape closes the top-most layer ---------- */
-  document.addEventListener('keydown', function (e) {
-    if (e.key !== 'Escape') return;
-    if (!lb.hidden) closeLB();
-    else if (!qv.hidden) closeQV();
-    else if (!search.hidden) closeSearch();
-    else if (drawer.classList.contains('is-open')) closeDrawer();
-    else closeDropdowns();
-  });
-
-  /* ---------- category expanding panels ---------- */
-  // var panels = $$('.panel');
-  // function activate(p) {
-  //   panels.forEach(function (x) { x.classList.toggle('is-active', x === p); });
-  // }
-  // var canHover = window.matchMedia && matchMedia('(hover:hover)').matches;
-  // panels.forEach(function (p) {
-  //   if (canHover) p.addEventListener('mouseenter', function () { if (innerWidth > 991) activate(p); });
-  //   p.addEventListener('focus', function () { activate(p); });
-  //   /* On touch / stacked layout: first tap opens the panel, second tap follows the link */
-  //   p.addEventListener('click', function (e) {
-  //     if (!p.classList.contains('is-active')) { e.preventDefault(); activate(p); }
-  //   });
-  // });
-
-  document.addEventListener("DOMContentLoaded", () => {
-    const panels = document.querySelectorAll(".cats .panel");
-
-    if (!panels.length) return;
-
-    let activeIndex = 0;
-    let autoPlay;
-
-    function activatePanel(index) {
-      panels.forEach((panel, i) => {
-        panel.classList.toggle("is-active", i === index);
-      });
-
-      activeIndex = index;
+      if (scrim) scrim.hidden = false;
+      drawer.classList.add('is-open');
+      drawer.setAttribute('aria-hidden', 'false');
+      if (burger) burger.setAttribute('aria-expanded', 'true');
+      document.body.style.overflow = 'hidden';
+      if (drawerClose) drawerClose.focus();
     }
-
-    function startAutoPlay() {
-      stopAutoPlay();
-
-      autoPlay = setInterval(() => {
-        activeIndex = (activeIndex + 1) % panels.length;
-        activatePanel(activeIndex);
-      }, 3000);
+    function closeDrawer() {
+      if (!drawer) return;
+      drawer.classList.remove('is-open');
+      drawer.setAttribute('aria-hidden', 'true');
+      if (burger) burger.setAttribute('aria-expanded', 'false');
+      if (scrim) scrim.hidden = true;
+      document.body.style.overflow = '';
+      if (lastFocus) lastFocus.focus();
     }
-
-    function stopAutoPlay() {
-      clearInterval(autoPlay);
+    on(burger, 'click', openDrawer);
+    on(drawerClose, 'click', closeDrawer);
+    on(scrim, 'click', closeDrawer);
+    on(drawer, 'keydown', e => trap(drawer, e));
+    on(drawer, 'click', e => { if (e.target.closest('a')) closeDrawer(); });
+    on(window, 'resize', () => {
+      if (drawer && window.innerWidth > 991 && drawer.classList.contains('is-open')) closeDrawer();
+    });
+ 
+    /* ---------- search overlay ---------- */
+    const search = $('#search');
+    function openSearch() {
+      if (!search) return;
+      lastFocus = document.activeElement; search.hidden = false;
+      document.body.style.overflow = 'hidden';
+      const q = $('#q'); if (q) q.focus();
     }
-
-    panels.forEach((panel, index) => {
-      panel.addEventListener("mouseenter", () => {
-        stopAutoPlay();
-        activatePanel(index);
+    function closeSearch() {
+      if (!search) return;
+      search.hidden = true; document.body.style.overflow = '';
+      if (lastFocus) lastFocus.focus();
+    }
+    on($('#searchOpen'), 'click', openSearch);
+    on($('#searchClose'), 'click', closeSearch);
+    on(search, 'keydown', e => trap(search, e));
+    on(search, 'click', e => { if (e.target === search) closeSearch(); });
+ 
+    /* ---------- quick-view modal ---------- */
+    const qv = $('#qvModal');
+    function openQV(card) {
+      if (!qv || !card) return;
+      lastFocus = document.activeElement;
+      const img = $('#qvImg'), mi = $('.modal__img', qv);
+      if (img) { img.src = card.dataset.img; img.alt = card.dataset.name; }
+      if (mi) {
+        mi.classList.remove('is-missing');
+        mi.setAttribute('data-label', (card.dataset.img || '').split('/').pop());
+      }
+      const t = $('#qvTitle'), p = $('#qvPrice'), l = $('#qvLink');
+      if (t) t.textContent = card.dataset.name;
+      if (p) p.textContent = card.dataset.price;
+      if (l) l.href = card.dataset.url;
+      qv.hidden = false; document.body.style.overflow = 'hidden';
+      const c = $('#qvClose'); if (c) c.focus();
+    }
+    function closeQV() {
+      if (!qv) return;
+      qv.hidden = true; document.body.style.overflow = '';
+      if (lastFocus) lastFocus.focus();
+    }
+    $$('.pcard__qv').forEach(b => on(b, 'click', () => openQV(b.closest('.pcard'))));
+    on($('#qvClose'), 'click', closeQV);
+    on(qv, 'click', e => { if (e.target === qv) closeQV(); });
+    on(qv, 'keydown', e => trap(qv, e));
+ 
+    /* ---------- gallery filter (with counts) + lightbox ---------- */
+    const chips = $$('.chip2');
+    const shots = $$('#masonry .shot');
+    const lb = $('#lb'), lbImg = $('#lbImg'), lbCap = $('#lbCap');
+    let lbList = [], lbIdx = 0, lbOpener = null;
+ 
+    chips.forEach(c => {
+      const f = c.dataset.f;
+      const n = f === 'all' ? shots.length : shots.filter(s => s.dataset.cat === f).length;
+      if (!c.querySelector('em')) c.insertAdjacentHTML('beforeend', '<em>' + n + '</em>');
+      on(c, 'click', () => {
+        chips.forEach(x => { x.classList.toggle('is-on', x === c); x.setAttribute('aria-selected', String(x === c)); });
+        shots.forEach(s => s.classList.toggle('is-off', f !== 'all' && s.dataset.cat !== f));
       });
-
-      panel.addEventListener("mouseleave", startAutoPlay);
-
-      panel.addEventListener("focus", () => {
-        stopAutoPlay();
-        activatePanel(index);
-      });
     });
-
-    activatePanel(0);
-    startAutoPlay();
-  });
-
-
-  /* ---------- featured rail ---------- */
-  var rail = $('#rail'), prev = $('#railPrev'), next = $('#railNext'), bar = $('#railBar');
-  function step() { var c = $('.pcard', rail); return c ? c.getBoundingClientRect().width + 24 : 300; }
-  function railState() {
-    var max = rail.scrollWidth - rail.clientWidth;
-    var pct = max > 0 ? rail.scrollLeft / max : 0;
-    var vis = rail.clientWidth / rail.scrollWidth;
-    bar.style.width = Math.max(vis, .12) * 100 + '%';
-    bar.style.transform = 'translateX(' + pct * (1 / Math.max(vis, .12) - 1) * 100 + '%)';
-    prev.disabled = rail.scrollLeft < 4;
-    next.disabled = rail.scrollLeft > max - 4;
-  }
-  prev.addEventListener('click', function () { rail.scrollBy({ left: -step(), behavior: 'smooth' }); });
-  next.addEventListener('click', function () { rail.scrollBy({ left: step(), behavior: 'smooth' }); });
-  rail.addEventListener('scroll', railState, { passive: true });
-  rail.addEventListener('keydown', function (e) {
-    if (e.key === 'ArrowRight') { e.preventDefault(); next.click(); }
-    if (e.key === 'ArrowLeft') { e.preventDefault(); prev.click(); }
-  });
-  window.addEventListener('resize', railState);
-  railState();
-
-  /* ---------- spotlight tabs ---------- */
-  var tabs = $$('.tab2'), tps = $$('.tabp');
-  function selectTab(t) {
-    tabs.forEach(function (x) {
-      var on = x === t;
-      x.classList.toggle('is-on', on); x.setAttribute('aria-selected', String(on)); x.tabIndex = on ? 0 : -1;
-    });
-    tps.forEach(function (p) { p.hidden = p.id !== t.getAttribute('aria-controls'); });
-  }
-  tabs.forEach(function (t, i) {
-    t.addEventListener('click', function () { selectTab(t); });
-    t.addEventListener('keydown', function (e) {
-      var n = e.key === 'ArrowRight' ? i + 1 : e.key === 'ArrowLeft' ? i - 1 : null;
-      if (n === null) return;
-      n = (n + tabs.length) % tabs.length; tabs[n].focus(); selectTab(tabs[n]);
-    });
-  });
-
-  (() => {
-  const chips = [...document.querySelectorAll('.chip2')];
-  const shots = [...document.querySelectorAll('#masonry .shot')];
-
-  /* ---- Filter + counts ---- */
-  chips.forEach(c => {
-    const f = c.dataset.f;
-    const n = f === 'all' ? shots.length : shots.filter(s => s.dataset.cat === f).length;
-    c.insertAdjacentHTML('beforeend', `<em>${n}</em>`);
-    c.addEventListener('click', () => {
-      chips.forEach(x => { x.classList.toggle('is-on', x === c); x.setAttribute('aria-selected', x === c); });
-      shots.forEach(s => s.classList.toggle('is-off', f !== 'all' && s.dataset.cat !== f));
-    });
-  });
-
-  /* ---- Lightbox ---- */
-    const lb = document.getElementById('lb'), img = document.getElementById('lbImg'), cap = document.getElementById('lbCap');
-    let list = [], i = 0, opener = null;
-    const visible = () => shots.filter(s => !s.classList.contains('is-off'));
-
-    const show = n => {
-      i = (n + list.length) % list.length;
-      const s = list[i], im = s.querySelector('img');
-      img.src = im.currentSrc || im.src;
-      img.alt = im.alt;
-      cap.innerHTML = `${s.querySelector('b').textContent}<small>${s.querySelector('figcaption span').textContent}</small>`;
-    };
-    const open = shot => {
-      list = visible(); opener = shot.querySelector('.shot__btn');
+ 
+    const visibleShots = () => shots.filter(s => !s.classList.contains('is-off'));
+    function showLB(n) {
+      if (!lbList.length || !lbImg) return;
+      lbIdx = (n + lbList.length) % lbList.length;
+      const s = lbList[lbIdx], im = $('img', s);
+      if (!im) return;
+      lbImg.src = im.currentSrc || im.src;
+      lbImg.alt = im.alt;
+      const b = $('b', s), sp = $('figcaption span', s);
+      if (lbCap) lbCap.innerHTML = (b ? b.textContent : '') + (sp ? '<small>' + sp.textContent + '</small>' : '');
+    }
+    function openLB(shot) {
+      if (!lb || shot.classList.contains('is-missing')) return;
+      lbList = visibleShots();
+      lbOpener = $('.shot__btn', shot);
       lb.hidden = false; document.body.style.overflow = 'hidden';
-      show(list.indexOf(shot));
-      document.getElementById('lbClose').focus();
-    };
-    const close = () => { lb.hidden = true; document.body.style.overflow = ''; opener && opener.focus(); };
-
-    shots.forEach(s => s.querySelector('.shot__btn').addEventListener('click', () => open(s)));
-    document.getElementById('lbClose').addEventListener('click', close);
-    document.getElementById('lbPrev').addEventListener('click', () => show(i - 1));
-    document.getElementById('lbNext').addEventListener('click', () => show(i + 1));
-    lb.addEventListener('click', e => { if (e.target === lb) close(); });
-    document.addEventListener('keydown', e => {
-      if (lb.hidden) return;
-      if (e.key === 'Escape') close();
-      if (e.key === 'ArrowLeft') show(i - 1);
-      if (e.key === 'ArrowRight') show(i + 1);
-    });
-  })();
-
-
-  (() => {
-    const media = document.querySelector('.lg__media');
-    const frame = document.getElementById('lgFrame');
-    if (!media || !frame || matchMedia('(prefers-reduced-motion: reduce), (hover: none)').matches) return;
-
-    media.addEventListener('mousemove', e => {
-      const r = media.getBoundingClientRect();
-      const x = (e.clientX - r.left) / r.width - 0.5;
-      const y = (e.clientY - r.top) / r.height - 0.5;
-      frame.style.transform = `perspective(900px) rotateY(${x * 8}deg) rotateX(${-y * 8}deg)`;
-    });
-    media.addEventListener('mouseleave', () => { frame.style.transform = ''; });
-  })();
-
-  /* ---------- process stepper (auto-advances; pauses on interaction) ---------- */
-  var steps = $$('.step'), panel = $('.proc__panel');
-
-  var data = [
-    ['i-chat', 'Consultation', 'Share your ideas, purpose, and preferences with our team.'],
-    ['i-pen', 'Design & Approval', 'We create a design concept for your review and approval.'],
-    ['i-layers', 'Material Selection', 'Choose premium materials, finishes, and details for your belt.'],
-    ['i-hammer', 'Handcrafting', 'Our craftsmen build your belt with precision and care.'],
-    ['i-shield', 'Quality Check', 'Every belt is inspected to meet our high standards.'],
-    ['i-truck', 'Secure Delivery', 'Carefully packaged and shipped safely to your door.']
-  ];
-
-  var extra = [
-    {t:'Day 1–2',   y:'Ideas & logo',   d:'Free consultation',   l:['Tell us your event, team or brand','Share logos, colors and ideas','Get expert advice on size and style']},
-    {t:'Day 2–4',   y:'Your feedback',  d:'Free digital mockup', l:['See a free mockup of your belt','Request unlimited tweaks','Approve before we build']},
-    {t:'Day 4–5',   y:'Your choices',   d:'Material samples',    l:['Pick leather and plate finish','Choose metals and colors','Add side plates and engraving']},
-    {t:'Day 5–12',  y:'Nothing needed', d:'Handmade belt',       l:['Cut, stitched and plated by hand','Photo updates on request','Built to last a lifetime']},
-    {t:'Day 12–13', y:'Nothing needed', d:'Inspected belt',      l:['Stitching and plating inspection','Engraving accuracy check','Final photos sent to you']},
-    {t:'Day 13–15', y:'Your address',   d:'Tracked shipping',    l:['Protective packaging','Tracked delivery','Ships worldwide']}
-  ];
-
-  var cur = 0, timer = null, started = 0, DUR = 5000, raf = null, paused = false, procBar = $('#procBar');
-
-  function renderExtra(i) {
-    var s = extra[i], bars = '';
-    $('#pMeta').innerHTML =
-      '<li><small>Timeline</small><b>' + s.t + '</b></li>' +
-      '<li><small>You provide</small><b>' + s.y + '</b></li>' +
-      '<li><small>We deliver</small><b>' + s.d + '</b></li>';
-    $('#pList').innerHTML = s.l.map(function (x) { return '<li>' + x + '</li>'; }).join('');
-    for (var n = 0; n < 6; n++) bars += '<span' + (n <= i ? ' class="on"' : '') + '></span>';
-    $('#pProg').innerHTML = bars + '<em>Step ' + (i + 1) + ' of 6</em>';
-    $('#pProg').setAttribute('aria-label', 'Step ' + (i + 1) + ' of 6');
-  }
-
-  function setStep(i) {
-    cur = i;
-    steps.forEach(function (s, k) {
-      var on = k === i;
-      s.classList.toggle('is-on', on);
-      s.setAttribute('aria-selected', String(on));
-    });
-    $('#procBig').textContent = ('0' + (i + 1)).slice(-2);
-    $('#procIc use').setAttribute('href', '#' + data[i][0]);
-    $('#procH').textContent = data[i][1];
-    $('#procP').textContent = data[i][2];
-    renderExtra(i);                                   // <- added here
-    panel.classList.remove('is-swap'); void panel.offsetWidth; panel.classList.add('is-swap');
-    started = performance.now();
-  }
-
-  function tick(now) {
-    if (!paused) {
-      var p = Math.min((now - started) / DUR, 1);
-      procBar.style.width = p * 100 + '%';
-      if (p >= 1) setStep((cur + 1) % steps.length);
+      showLB(lbList.indexOf(shot));
+      const c = $('#lbClose'); if (c) c.focus();
     }
-    raf = requestAnimationFrame(tick);
-  }
-
-  steps.forEach(function (s, i) {
-    s.addEventListener('click', function () { setStep(i); });
-  });
-
-  var procEl = $('#proc');
-  procEl.addEventListener('mouseenter', function () { paused = true; });
-  procEl.addEventListener('mouseleave', function () { paused = false; started = performance.now(); });
-  procEl.addEventListener('focusin', function () { paused = true; });
-  procEl.addEventListener('focusout', function () { paused = false; started = performance.now(); });
-
-  renderExtra(0);                                     // <- initial render
-  started = performance.now();
-  raf = requestAnimationFrame(tick);                  // <- start autoplay (remove if already started elsewhere)
-
-  /* ---------- reveal + counters ---------- */
-  var revealTargets = $$('.sec__head,.kicker,.panels,.craft__grid>*,.rows li,.pcard,.spot__grid>*,.proc__grid,.shot,.post,.promo__copy,.promo__media,.news>*,.stats li');
-  revealTargets.forEach(function (el) { el.classList.add('reveal'); });
-  function countUp(el) {
-    var end = parseFloat(el.dataset.count), dec = +el.dataset.dec || 0;
-    if (reduce) { return; }
-    var t0 = performance.now(), dur = 1400;
-    (function f(n) {
-      var p = Math.min((n - t0) / dur, 1), e = 1 - Math.pow(1 - p, 3), v = end * e;
-      el.textContent = dec ? v.toFixed(dec) : Math.round(v).toLocaleString('en-US');
-      if (p < 1) requestAnimationFrame(f);
-    })(t0);
-  }
-  if ('IntersectionObserver' in window) {
-    var io = new IntersectionObserver(function (entries) {
-      entries.forEach(function (en) {
-        if (!en.isIntersecting) return;
-        en.target.classList.add('is-in');
-        $$('[data-count]', en.target).forEach(countUp);
-        if (en.target.matches('[data-count]')) countUp(en.target);
-        io.unobserve(en.target);
+    function closeLB() {
+      if (!lb) return;
+      lb.hidden = true; document.body.style.overflow = '';
+      if (lbOpener) lbOpener.focus();
+    }
+    shots.forEach(s => on($('.shot__btn', s), 'click', () => openLB(s)));
+    on($('#lbClose'), 'click', closeLB);
+    on($('#lbPrev'), 'click', () => showLB(lbIdx - 1));
+    on($('#lbNext'), 'click', () => showLB(lbIdx + 1));
+    on(lb, 'click', e => { if (e.target === lb) closeLB(); });
+    on(lb, 'keydown', e => trap(lb, e));
+ 
+    /* ---------- global keys: Escape + lightbox arrows ---------- */
+    on(document, 'keydown', e => {
+      if (lb && !lb.hidden) {
+        if (e.key === 'ArrowLeft')  { showLB(lbIdx - 1); return; }
+        if (e.key === 'ArrowRight') { showLB(lbIdx + 1); return; }
+      }
+      if (e.key !== 'Escape') return;
+      if (lb && !lb.hidden) closeLB();
+      else if (qv && !qv.hidden) closeQV();
+      else if (search && !search.hidden) closeSearch();
+      else if (drawer && drawer.classList.contains('is-open')) closeDrawer();
+      else closeDropdowns();
+    });
+ 
+    /* ---------- category expanding panels (autoplay) ---------- */
+    (function () {
+      const panels = $$('.cats .panel');
+      if (!panels.length) return;
+      let active = 0, auto = null;
+      function activate(i) {
+        panels.forEach((p, k) => p.classList.toggle('is-active', k === i));
+        active = i;
+      }
+      function stop() { clearInterval(auto); auto = null; }
+      function start() {
+        stop();
+        if (reduce) return;
+        auto = setInterval(() => activate((active + 1) % panels.length), 3000);
+      }
+      panels.forEach((p, i) => {
+        on(p, 'mouseenter', () => { stop(); activate(i); });
+        on(p, 'mouseleave', start);
+        on(p, 'focus', () => { stop(); activate(i); });
       });
-    }, { threshold: .12, rootMargin: '0px 0px -40px 0px' });
-    revealTargets.forEach(function (el) { io.observe(el); });
-  } else {
-    revealTargets.forEach(function (el) { el.classList.add('is-in'); });
-  }
-
-  /* start the process stepper only when visible */
-  if ('IntersectionObserver' in window && !reduce) {
-    var po = new IntersectionObserver(function (en) {
-      if (en[0].isIntersecting) { if (!raf) { started = performance.now(); raf = requestAnimationFrame(tick); } }
-      else if (raf) { cancelAnimationFrame(raf); raf = null; }
-    });
-    po.observe(procEl);
-  }
-
-  /* ---------- newsletter (client-side validation only) ---------- */
-  var nl = $('#nl'), nlMsg = $('#nlMsg'), nlIn = $('#nlEmail');
-  nl.addEventListener('submit', function (e) {
-    var ok = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(nlIn.value.trim());
-    $('.nl__row', nl).classList.toggle('is-err', !ok);
-    nlMsg.classList.toggle('is-err', !ok);
-    nlMsg.classList.remove('is-ok');
-    if (!ok) {
-      e.preventDefault();
-      nlMsg.textContent = 'Please enter a valid email address.';
-      nlIn.focus();
+      activate(0); start();
+    })();
+ 
+    /* ---------- featured rail ---------- */
+    (function () {
+      const rail = $('#rail'), prev = $('#railPrev'), next = $('#railNext'), bar = $('#railBar');
+      if (!rail) return;
+      const step = () => { const c = $('.pcard', rail); return c ? c.getBoundingClientRect().width + 24 : 300; };
+      function railState() {
+        const max = rail.scrollWidth - rail.clientWidth;
+        const pct = max > 0 ? rail.scrollLeft / max : 0;
+        const vis = rail.scrollWidth ? rail.clientWidth / rail.scrollWidth : 1;
+        if (bar) {
+          bar.style.width = Math.max(vis, .12) * 100 + '%';
+          bar.style.transform = 'translateX(' + pct * (1 / Math.max(vis, .12) - 1) * 100 + '%)';
+        }
+        if (prev) prev.disabled = rail.scrollLeft < 4;
+        if (next) next.disabled = rail.scrollLeft > max - 4;
+      }
+      on(prev, 'click', () => rail.scrollBy({ left: -step(), behavior: 'smooth' }));
+      on(next, 'click', () => rail.scrollBy({ left:  step(), behavior: 'smooth' }));
+      on(rail, 'scroll', railState, { passive: true });
+      on(rail, 'keydown', e => {
+        if (e.key === 'ArrowRight') { e.preventDefault(); if (next) next.click(); }
+        if (e.key === 'ArrowLeft')  { e.preventDefault(); if (prev) prev.click(); }
+      });
+      on(window, 'resize', railState);
+      railState();
+    })();
+ 
+    /* =====================================================
+       SPOTLIGHT TABS (Global Domination) – FIXED
+       Syncs: aria-selected + tabindex + .is-on + [hidden] + display
+       ===================================================== */
+    (function () {
+      const tabs = $$('.tab2'), panels = $$('.tabp');
+      if (!tabs.length || !panels.length) return;
+ 
+      function selectTab(t, focus) {
+        const target = t.getAttribute('aria-controls');
+        tabs.forEach(x => {
+          const o = x === t;
+          x.classList.toggle('is-on', o);
+          x.setAttribute('aria-selected', String(o));
+          x.tabIndex = o ? 0 : -1;
+        });
+        panels.forEach(p => {
+          const show = p.id === target;
+          p.hidden = !show;
+          p.classList.toggle('is-on', show);
+          p.style.display = show ? '' : 'none';
+        });
+        if (focus) t.focus();
+      }
+ 
+      tabs.forEach((t, i) => {
+        on(t, 'click', () => selectTab(t));
+        on(t, 'keydown', e => {
+          let n = null;
+          if (e.key === 'ArrowRight') n = i + 1;
+          else if (e.key === 'ArrowLeft') n = i - 1;
+          else if (e.key === 'Home') n = 0;
+          else if (e.key === 'End') n = tabs.length - 1;
+          if (n === null) return;
+          e.preventDefault();
+          selectTab(tabs[(n + tabs.length) % tabs.length], true);
+        });
+      });
+ 
+      // initial sync (so HTML state and JS state always match)
+      selectTab(tabs.find(t => t.classList.contains('is-on')) || tabs[0]);
+    })();
+ 
+    /* ---------- 3D tilt (lg section) ---------- */
+    (function () {
+      const media = $('.lg__media'), frame = $('#lgFrame');
+      if (!media || !frame || matchMedia('(prefers-reduced-motion: reduce), (hover: none)').matches) return;
+      on(media, 'mousemove', e => {
+        const r = media.getBoundingClientRect();
+        const x = (e.clientX - r.left) / r.width - 0.5;
+        const y = (e.clientY - r.top) / r.height - 0.5;
+        frame.style.transform = 'perspective(900px) rotateY(' + (x * 8) + 'deg) rotateX(' + (-y * 8) + 'deg)';
+      });
+      on(media, 'mouseleave', () => { frame.style.transform = ''; });
+    })();
+ 
+    /* =====================================================
+       PROCESS STEPPER (Your Vision. Our Craftsmanship.) – FIXED
+       - elapsed-time based progress (pause/resume safe)
+       - pauses only on mouse hover / keyboard focus
+       - click resets bar, touch never freezes autoplay
+       - arrow-key navigation
+       ===================================================== */
+    (function () {
+      const steps = $$('.step'), panel = $('.proc__panel'), procEl = $('#proc'), procBar = $('#procBar');
+      if (!steps.length || !panel || !procEl) return;
+ 
+      const data = [
+        ['i-chat',   'Consultation',       'Share your ideas, purpose, and preferences with our team.'],
+        ['i-pen',    'Design & Approval',  'We create a design concept for your review and approval.'],
+        ['i-layers', 'Material Selection', 'Choose premium materials, finishes, and details for your belt.'],
+        ['i-hammer', 'Handcrafting',       'Our craftsmen build your belt with precision and care.'],
+        ['i-shield', 'Quality Check',      'Every belt is inspected to meet our high standards.'],
+        ['i-truck',  'Secure Delivery',    'Carefully packaged and shipped safely to your door.']
+      ];
+      const extra = [
+        { t: 'Day 1–2',   y: 'Ideas & logo',   d: 'Free consultation',   l: ['Tell us your event, team or brand', 'Share logos, colors and ideas', 'Get expert advice on size and style'] },
+        { t: 'Day 2–4',   y: 'Your feedback',  d: 'Free digital mockup', l: ['See a free mockup of your belt', 'Request unlimited tweaks', 'Approve before we build'] },
+        { t: 'Day 4–5',   y: 'Your choices',   d: 'Material samples',    l: ['Pick leather and plate finish', 'Choose metals and colors', 'Add side plates and engraving'] },
+        { t: 'Day 5–12',  y: 'Nothing needed', d: 'Handmade belt',       l: ['Cut, stitched and plated by hand', 'Photo updates on request', 'Built to last a lifetime'] },
+        { t: 'Day 12–13', y: 'Nothing needed', d: 'Inspected belt',      l: ['Stitching and plating inspection', 'Engraving accuracy check', 'Final photos sent to you'] },
+        { t: 'Day 13–15', y: 'Your address',   d: 'Tracked shipping',    l: ['Protective packaging', 'Tracked delivery', 'Ships worldwide'] }
+      ];
+ 
+      const DUR = 5000;
+      let cur = 0, elapsed = 0, last = 0, raf = null;
+      let hovering = false, kbFocus = false;
+ 
+      const big = $('#procBig'), use = $('#procIc use'), h = $('#procH'), p = $('#procP');
+      const meta = $('#pMeta'), list = $('#pList'), prog = $('#pProg');
+ 
+      function renderExtra(i) {
+        const s = extra[i]; let bars = '';
+        if (meta) meta.innerHTML =
+          '<li><small>Timeline</small><b>' + s.t + '</b></li>' +
+          '<li><small>You provide</small><b>' + s.y + '</b></li>' +
+          '<li><small>We deliver</small><b>' + s.d + '</b></li>';
+        if (list) list.innerHTML = s.l.map(x => '<li>' + x + '</li>').join('');
+        if (prog) {
+          for (let n = 0; n < 6; n++) bars += '<span' + (n <= i ? ' class="on"' : '') + '></span>';
+          prog.innerHTML = bars + '<em>Step ' + (i + 1) + ' of 6</em>';
+          prog.setAttribute('aria-label', 'Step ' + (i + 1) + ' of 6');
+        }
+      }
+ 
+      function setStep(i) {
+        cur = i;
+        elapsed = 0;
+        steps.forEach((s, k) => {
+          const o = k === i;
+          s.classList.toggle('is-on', o);
+          s.setAttribute('aria-selected', String(o));
+          s.tabIndex = o ? 0 : -1;
+        });
+        if (big) big.textContent = ('0' + (i + 1)).slice(-2);
+        if (use) use.setAttribute('href', '#' + data[i][0]);
+        if (h) h.textContent = data[i][1];
+        if (p) p.textContent = data[i][2];
+        renderExtra(i);
+        panel.classList.remove('is-swap'); void panel.offsetWidth; panel.classList.add('is-swap');
+        if (procBar) procBar.style.width = '0%';
+      }
+ 
+      function frame(now) {
+        raf = requestAnimationFrame(frame);
+        const dt = Math.min(now - last, 100);   // guard against tab-switch jumps
+        last = now;
+        if (hovering || kbFocus || document.hidden) return;
+        elapsed += dt;
+        if (procBar) procBar.style.width = Math.min(elapsed / DUR, 1) * 100 + '%';
+        if (elapsed >= DUR) setStep((cur + 1) % steps.length);
+      }
+      function play() { if (reduce || raf) return; last = performance.now(); raf = requestAnimationFrame(frame); }
+      function halt() { if (raf) { cancelAnimationFrame(raf); raf = null; } }
+ 
+      steps.forEach((s, i) => {
+        on(s, 'click', () => setStep(i));
+        on(s, 'keydown', e => {
+          let n = null;
+          if (e.key === 'ArrowDown' || e.key === 'ArrowRight') n = i + 1;
+          else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') n = i - 1;
+          else if (e.key === 'Home') n = 0;
+          else if (e.key === 'End') n = steps.length - 1;
+          if (n === null) return;
+          e.preventDefault();
+          n = (n + steps.length) % steps.length;
+          steps[n].focus(); setStep(n);
+        });
+      });
+ 
+      // pause only for real mouse hover (touch never freezes autoplay)
+      on(procEl, 'pointerenter', e => { if (e.pointerType === 'mouse') hovering = true; });
+      on(procEl, 'pointerleave', e => { if (e.pointerType === 'mouse') hovering = false; });
+ 
+      // pause only for keyboard focus, not after a mouse click
+      on(procEl, 'focusin', e => {
+        let kb = false;
+        try { kb = e.target.matches(':focus-visible'); } catch (err) { kb = false; }
+        kbFocus = kb;
+      });
+      on(procEl, 'focusout', () => { kbFocus = false; });
+ 
+      setStep(0);
+ 
+      if ('IntersectionObserver' in window) {
+        new IntersectionObserver(en => { en[0].isIntersecting ? play() : halt(); }, { threshold: 0.15 }).observe(procEl);
+      } else {
+        play();
+      }
+    })();
+ 
+    /* ---------- reveal + counters ---------- */
+    function countUp(el) {
+      if (el.dataset.counted) return;
+      el.dataset.counted = '1';
+      const end = parseFloat(el.dataset.count), dec = +el.dataset.dec || 0;
+      if (reduce || isNaN(end)) return;
+      const t0 = performance.now(), dur = 1400;
+      (function f(n) {
+        const pr = Math.min((n - t0) / dur, 1);
+        const e = 1 - Math.pow(1 - pr, 3);
+        const v = end * e;
+        el.textContent = dec ? v.toFixed(dec) : Math.round(v).toLocaleString('en-US');
+        if (pr < 1) requestAnimationFrame(f);
+      })(t0);
     }
-    /* valid: form posts to its action (connect to your email provider / Shopify) */
-  });
-  nlIn.addEventListener('input', function () {
-    $('.nl__row', nl).classList.remove('is-err'); nlMsg.classList.remove('is-err');
-    nlMsg.textContent = 'We respect your privacy. Unsubscribe anytime.';
-  });
-
-  /* ---------- smooth anchor scroll with header offset ---------- */
-  $$('a[href^="#"]').forEach(function (a) {
-    a.addEventListener('click', function (e) {
-      var id = a.getAttribute('href'), t = id.length > 1 && $(id);
-      if (!t) return;
-      e.preventDefault();
-      window.scrollTo({ top: t.getBoundingClientRect().top + window.scrollY - hdr.offsetHeight, behavior: reduce ? 'auto' : 'smooth' });
-      t.setAttribute('tabindex', '-1'); t.focus({ preventScroll: true });
+    function reveal(el) {
+      el.classList.add('is-in');
+      $$('[data-count]', el).forEach(countUp);
+      if (el.matches('[data-count]')) countUp(el);
+    }
+ 
+    const sel = '.sec__head,.kicker,.panels,.craft__grid>*,.rows li,.pcard,.spot__grid>*,.proc__grid,.shot,.post,.promo__copy,.promo__media,.news>*,.stats li';
+    const revealTargets = $$(sel);
+    revealTargets.forEach(el => el.classList.add('reveal'));
+ 
+    if ('IntersectionObserver' in window) {
+      // low threshold so tall blocks (spotlight / process) always trigger
+      const io = new IntersectionObserver((entries, o) => {
+        entries.forEach(en => { if (en.isIntersecting) { reveal(en.target); o.unobserve(en.target); } });
+      }, { threshold: 0.01, rootMargin: '0px 0px -8% 0px' });
+      revealTargets.forEach(el => io.observe(el));
+    } else {
+      revealTargets.forEach(reveal);
+    }
+ 
+    /* ---------- newsletter ---------- */
+    (function () {
+      const nl = $('#nl'), nlMsg = $('#nlMsg'), nlIn = $('#nlEmail');
+      if (!nl || !nlMsg || !nlIn) return;
+      const row = $('.nl__row', nl);
+      on(nl, 'submit', e => {
+        const ok = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(nlIn.value.trim());
+        if (row) row.classList.toggle('is-err', !ok);
+        nlMsg.classList.toggle('is-err', !ok);
+        nlMsg.classList.remove('is-ok');
+        if (!ok) {
+          e.preventDefault();
+          nlMsg.textContent = 'Please enter a valid email address.';
+          nlIn.focus();
+        }
+      });
+      on(nlIn, 'input', () => {
+        if (row) row.classList.remove('is-err');
+        nlMsg.classList.remove('is-err');
+        nlMsg.textContent = 'We respect your privacy. Unsubscribe anytime.';
+      });
+    })();
+ 
+    /* ---------- smooth anchor scroll with header offset ---------- */
+    $$('a[href^="#"]').forEach(a => {
+      on(a, 'click', e => {
+        const id = a.getAttribute('href');
+        if (!id || id.length < 2) return;
+        let t = null;
+        try { t = document.querySelector(id); } catch (err) { return; }
+        if (!t) return;
+        e.preventDefault();
+        const off = hdr ? hdr.offsetHeight : 0;
+        window.scrollTo({ top: t.getBoundingClientRect().top + window.scrollY - off, behavior: reduce ? 'auto' : 'smooth' });
+        t.setAttribute('tabindex', '-1');
+        t.focus({ preventScroll: true });
+      });
     });
+ 
   });
 })();
